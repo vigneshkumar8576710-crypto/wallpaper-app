@@ -8,15 +8,62 @@
     <style>
         body { margin: 0; font-family: 'Roboto', sans-serif; display: flex; background: #f8f9fa; height: 100vh; overflow: hidden; }
         
-        /* Sidebar */
-        .sidebar { width: 250px; background: white; border-right: 1px solid #dadce0; display: flex; flex-direction: column; }
-        .sidebar-header { padding: 20px; font-weight: bold; font-size: 20px; color: #1a73e8; border-bottom: 1px solid #dadce0; }
-        .nav-item { padding: 15px 25px; cursor: pointer; display: flex; align-items: center; color: #3c4043; transition: 0.2s; text-decoration: none; }
+        /* --- Sidebar & Toggle Logic --- */
+        .sidebar { 
+            width: 250px; 
+            background: white; 
+            border-right: 1px solid #dadce0; 
+            display: flex; 
+            flex-direction: column; 
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            position: relative;
+        }
+        
+        /* Collapsed State */
+        .sidebar.collapsed { width: 72px; }
+        .sidebar.collapsed .sidebar-header span,
+        .sidebar.collapsed .nav-item span { display: none; }
+        .sidebar.collapsed .nav-item { padding-left: 24px; }
+        .sidebar.collapsed .sidebar-header { justify-content: center; padding: 20px 0; }
+
+        .sidebar-header { 
+            padding: 20px; 
+            font-weight: bold; 
+            font-size: 20px; 
+            color: #1a73e8; 
+            border-bottom: 1px solid #dadce0; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .toggle-btn { 
+            cursor: pointer; 
+            color: #5f6368; 
+            padding: 4px; 
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .toggle-btn:hover { background: #f1f3f4; color: #1a73e8; }
+        .sidebar.collapsed .toggle-btn { transform: rotate(180deg); }
+
+        .nav-item { 
+            padding: 15px 25px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            color: #3c4043; 
+            transition: 0.2s; 
+            text-decoration: none; 
+            white-space: nowrap;
+        }
         .nav-item:hover { background: #f1f3f4; }
         .nav-item.active { background: #e8f0fe; color: #1a73e8; border-radius: 0 25px 25px 0; margin-right: 10px; font-weight: 500; }
-        .nav-item i { margin-right: 15px; }
+        .nav-item i { margin-right: 15px; min-width: 24px; }
 
-        /* Main Content */
+        /* --- Main Content --- */
         .main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
         .top-bar { height: 64px; background: white; border-bottom: 1px solid #dadce0; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
         .search-box { background: #f1f3f4; border-radius: 8px; padding: 10px 20px; width: 400px; display: flex; align-items: center; border: 1px solid transparent; transition: 0.3s; }
@@ -45,13 +92,16 @@
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="sidebar-header">VKNOVA Aura</div>
-        <div class="nav-item active" onclick="filterCategory('all', this)"><i class="material-icons">dashboard</i>Dashboard</div>
-        <div class="nav-item" onclick="filterCategory('Cars', this)"><i class="material-icons">directions_car</i>Cars & Bikes</div>
-        <div class="nav-item" onclick="filterCategory('Marvel', this)"><i class="material-icons">bolt</i>Marvel / DC</div>
-        <div class="nav-item" onclick="filterCategory('Nature', this)"><i class="material-icons">nature</i>Nature</div>
-        <div class="nav-item" onclick="filterCategory('Anime', this)"><i class="material-icons">palette</i>Anime</div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span>VKNOVA Aura</span>
+            <i class="material-icons toggle-btn" onclick="toggleSidebar()">chevron_left</i>
+        </div>
+        <div class="nav-item active" onclick="filterCategory('all', this)"><i class="material-icons">dashboard</i><span>Dashboard</span></div>
+        <div class="nav-item" onclick="filterCategory('Cars', this)"><i class="material-icons">directions_car</i><span>Cars & Bikes</span></div>
+        <div class="nav-item" onclick="filterCategory('Marvel', this)"><i class="material-icons">bolt</i><span>Marvel / DC</span></div>
+        <div class="nav-item" onclick="filterCategory('Nature', this)"><i class="material-icons">nature</i><span>Nature</span></div>
+        <div class="nav-item" onclick="filterCategory('Anime', this)"><i class="material-icons">palette</i><span>Anime</span></div>
     </div>
 
     <div class="main">
@@ -67,7 +117,7 @@
             <div class="stats-row">
                 <div class="stat-card"><strong>Total Wallpapers</strong><div id="count-total">0</div></div>
                 <div class="stat-card"><strong>Categories</strong><div id="count-cats">0</div></div>
-                <div class="stat-card"><strong>Monthly Active Users</strong><div id="count-mau">45.2K</div></div>
+                <div class="stat-card"><strong>Monthly Active Users</strong><div id="count-mau">48.2K</div></div>
             </div>
 
             <div id="empty-state">
@@ -79,12 +129,10 @@
     </div>
     
 <script type="module">
-    // 1. Import required Firebase SDKs
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 
-    // 2. Your specific VKNOVA Configuration
     const firebaseConfig = {
         apiKey: "AIzaSyCzuTyx-D3oug-PrWMvrtnuvalVRt1HU9I",
         authDomain: "wallpaper-d4d68.firebaseapp.com",
@@ -96,7 +144,6 @@
         measurementId: "G-4EMQNSNGKW"
     };
 
-    // 3. Initialize Firebase & Database
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const analytics = getAnalytics(app);
@@ -104,14 +151,17 @@
     let allWallpapers = [];
     let currentFilter = 'all';
 
-    // 4. Real-time Listener (The "Engine")
+    // Toggle Sidebar Function
+    window.toggleSidebar = () => {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+    };
+
     const wpRef = ref(db, 'wallpapers');
     onValue(wpRef, (snapshot) => {
         const data = snapshot.val();
         allWallpapers = [];
         
         if (data) {
-            // Loop through categories (Cars, Anime, etc.)
             Object.keys(data).forEach(cat => {
                 const items = Array.isArray(data[cat]) ? data[cat] : Object.values(data[cat]);
                 items.forEach(wp => {
@@ -129,7 +179,6 @@
         executeCombinedFilter();
     });
 
-    // 5. Filter Logic (Search + Sidebar)
     window.executeCombinedFilter = () => {
         const term = document.getElementById('search-input').value.toLowerCase();
         const filtered = allWallpapers.filter(w => {
@@ -141,7 +190,6 @@
         renderGrid(filtered);
     };
 
-    // 6. UI Rendering (Grid)
     window.renderGrid = (list) => {
         const grid = document.getElementById('wallpaper-grid');
         const empty = document.getElementById('empty-state');
@@ -154,7 +202,6 @@
         empty.style.display = 'none';
 
         list.forEach(item => {
-            // Deep link triggers your Android app's wallpaper setter
             const deepLink = `vknova://apply?url=${encodeURIComponent(item.url)}`;
             grid.innerHTML += `
                 <div class="wp-card">
@@ -168,7 +215,6 @@
         });
     };
 
-    // 7. Event Handlers
     window.filterCategory = (cat, element) => {
         currentFilter = cat;
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
