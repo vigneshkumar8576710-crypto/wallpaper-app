@@ -77,106 +77,113 @@
             <div class="grid" id="wallpaper-grid"></div>
         </div>
     </div>
+    
+<script type="module">
+    // 1. Import required Firebase SDKs
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+    // 2. Your specific VKNOVA Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyCzuTyx-D3oug-PrWMvrtnuvalVRt1HU9I",
+        authDomain: "wallpaper-d4d68.firebaseapp.com",
+        databaseURL: "https://wallpaper-d4d68-default-rtdb.firebaseio.com",
+        projectId: "wallpaper-d4d68",
+        storageBucket: "wallpaper-d4d68.firebasestorage.app",
+        messagingSenderId: "263437910858",
+        appId: "1:263437910858:web:0d40ebdd4c6e1d393377b3",
+        measurementId: "G-4EMQNSNGKW"
+    };
 
-        // CONFIGURATION: Replace with your details from Firebase Console
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "your-project.firebaseapp.com",
-            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
-            projectId: "your-project",
-            storageBucket: "your-project.appspot.com",
-            appId: "your-app-id"
-        };
+    // 3. Initialize Firebase & Database
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const analytics = getAnalytics(app);
+    
+    let allWallpapers = [];
+    let currentFilter = 'all';
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    // 4. Real-time Listener (The "Engine")
+    const wpRef = ref(db, 'wallpapers');
+    onValue(wpRef, (snapshot) => {
+        const data = snapshot.val();
+        allWallpapers = [];
         
-        let allWallpapers = [];
-        let currentFilter = 'all';
-
-        // Load Data from Firebase
-        const wpRef = ref(db, 'wallpapers');
-        onValue(wpRef, (snapshot) => {
-            const data = snapshot.val();
-            allWallpapers = [];
-            
-            if (data) {
-                Object.keys(data).forEach(cat => {
-                    // Check if data[cat] is an array or object
-                    const items = Array.isArray(data[cat]) ? data[cat] : Object.values(data[cat]);
-                    items.forEach(wp => {
-                        allWallpapers.push({ ...wp, category: cat });
-                    });
+        if (data) {
+            // Loop through categories (Cars, Anime, etc.)
+            Object.keys(data).forEach(cat => {
+                const items = Array.isArray(data[cat]) ? data[cat] : Object.values(data[cat]);
+                items.forEach(wp => {
+                    if(wp.url) {
+                        allWallpapers.push({ 
+                            ...wp, 
+                            category: cat, 
+                            title: wp.title || "Aura Wallpaper" 
+                        });
+                    }
                 });
-            }
-            updateStats(data);
-            executeCombinedFilter();
-        });
-
-        // The "Search Engine" logic - Filters by Search Term AND Sidebar Category
-        window.executeCombinedFilter = () => {
-            const term = document.getElementById('search-input').value.toLowerCase();
-            
-            const filtered = allWallpapers.filter(w => {
-                const matchesSearch = w.title.toLowerCase().includes(term) || 
-                                     w.category.toLowerCase().includes(term);
-                const matchesCategory = (currentFilter === 'all' || w.category === currentFilter);
-                
-                return matchesSearch && matchesCategory;
             });
-
-            renderGrid(filtered);
-        };
-
-        window.renderGrid = (list) => {
-            const grid = document.getElementById('wallpaper-grid');
-            const empty = document.getElementById('empty-state');
-            grid.innerHTML = '';
-            
-            if (list.length === 0) {
-                empty.style.display = 'block';
-                return;
-            }
-            empty.style.display = 'none';
-
-            list.forEach(item => {
-                const deepLink = `vknova://apply?url=${encodeURIComponent(item.url)}`;
-                grid.innerHTML += `
-                    <div class="wp-card">
-                        <img src="${item.url}" alt="${item.title}" loading="lazy">
-                        <div class="wp-info">
-                            <span>${item.title}</span>
-                            <a href="${deepLink}" class="btn-apply">APPLY</a>
-                        </div>
-                    </div>
-                `;
-            });
-        };
-
-        window.filterCategory = (cat, element) => {
-            currentFilter = cat;
-            // Update UI Sidebar state
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            element.classList.add('active');
-            
-            executeCombinedFilter();
-        };
-
-        window.searchWallpapers = () => {
-            executeCombinedFilter();
-        };
-
-        function updateStats(data) {
-            if (!data) return;
-            document.getElementById('count-total').innerText = allWallpapers.length.toLocaleString();
-            document.getElementById('count-cats').innerText = Object.keys(data).length;
-            // Static mock for MAU - you can link this to a Firebase analytics node later
-            document.getElementById('count-mau').innerText = "48,290";
         }
-    </script>
+        updateStats(data);
+        executeCombinedFilter();
+    });
+
+    // 5. Filter Logic (Search + Sidebar)
+    window.executeCombinedFilter = () => {
+        const term = document.getElementById('search-input').value.toLowerCase();
+        const filtered = allWallpapers.filter(w => {
+            const matchesSearch = w.title.toLowerCase().includes(term) || 
+                                 w.category.toLowerCase().includes(term);
+            const matchesCategory = (currentFilter === 'all' || w.category === currentFilter);
+            return matchesSearch && matchesCategory;
+        });
+        renderGrid(filtered);
+    };
+
+    // 6. UI Rendering (Grid)
+    window.renderGrid = (list) => {
+        const grid = document.getElementById('wallpaper-grid');
+        const empty = document.getElementById('empty-state');
+        grid.innerHTML = '';
+        
+        if (list.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+
+        list.forEach(item => {
+            // Deep link triggers your Android app's wallpaper setter
+            const deepLink = `vknova://apply?url=${encodeURIComponent(item.url)}`;
+            grid.innerHTML += `
+                <div class="wp-card">
+                    <img src="${item.url}" alt="${item.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x500?text=Aura+Preview'">
+                    <div class="wp-info">
+                        <span>${item.title}</span>
+                        <a href="${deepLink}" class="btn-apply">APPLY</a>
+                    </div>
+                </div>
+            `;
+        });
+    };
+
+    // 7. Event Handlers
+    window.filterCategory = (cat, element) => {
+        currentFilter = cat;
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        executeCombinedFilter();
+    };
+
+    window.searchWallpapers = () => executeCombinedFilter();
+
+    function updateStats(data) {
+        if (!data) return;
+        document.getElementById('count-total').innerText = allWallpapers.length.toLocaleString();
+        document.getElementById('count-cats').innerText = Object.keys(data).length;
+        document.getElementById('count-mau').innerText = "48,290"; 
+    }
+</script>
 </body>
 </html>
